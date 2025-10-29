@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Page Replacement Simulator (FIFO)</title>
+    <!-- Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Use Inter as the default font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom styles for the page reference string display */
+        .page-item {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        
+        /* Highlight the currently processing page */
+        .page-item.active {
+            transform: scale(1.15);
+            border-color: #3b82f6; /* blue-500 */
+            font-weight: 700;
+            background-color: #dbeafe; /* blue-100 */
+        }
+
+        /* Custom style for the canvas container to ensure it has a defined height */
+        #canvasContainer {
+            height: 450px; /* Default height */
+        }
+
+        /* Responsive height adjustment */
+        @media (min-width: 768px) {
+            #canvasContainer {
+                height: 500px; /* Taller on medium screens and up */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Application Container -->
+    <div class="w-full max-w-7xl bg-white shadow-2xl rounded-lg overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-gray-800 text-white p-4 shadow-md">
+            <h1 class="text-2xl font-bold text-center">OS Page Replacement Simulator: FIFO</h1>
+        </header>
+
+        <!-- Main Content Area (Controls + Visualization) -->
+        <main class="flex flex-col md:flex-row">
+
+            <!-- 1. Controls Panel (Left Side) -->
+            <aside class="md:w-1/3 w-full bg-gray-50 p-6 border-r border-gray-200">
+                
+                <!-- Configuration Section -->
+                <section class="mb-6">
+                    <h2 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">Configuration</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="memoryFrames" class="block text-sm font-medium text-gray-700">Memory Frames:</label>
+                            <input type="number" id="memoryFrames" value="3" min="1" max="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="pageString" class="block text-sm font-medium text-gray-700">Page Reference String (comma-sep):</label>
+                            <input type="text" id="pageString" value="7,0,1,2,0,3,0,4,2,3,0,3,2,1,2,0,1,7,0,1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <button id="startButton" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-semibold hover:bg-blue-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Start / Restart Simulation</button>
+                    </div>
+                </section>
+
+                <!-- Controls Section -->
+                <section class="mb-6">
+                    <h2 class="text-xl font-semibold mb-4 mt-8 border-b pb-2 text-gray-700">Controls</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="playPauseButton" class="bg-green-500 text-white py-2 px-4 rounded-md font-semibold hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>Play</button>
+                        <button id="resetButton" class="bg-red-500 text-white py-2 px-4 rounded-md font-semibold hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>Reset</button>
+                        <button id="stepBackwardButton" class="bg-gray-500 text-white py-2 px-4 rounded-md font-semibold hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed">&lt;&lt; Step Back</button>
+                        <button id="stepForwardButton" class="bg-gray-500 text-white py-2 px-4 rounded-md font-semibold hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed">Step Fwd &gt;&gt;</button>
+                    </div>
+                </section>
+
+                <!-- Speed Control Section -->
+                <section>
+                    <h2 class="text-xl font-semibold mb-4 mt-8 border-b pb-2 text-gray-700">Speed</h2>
+                    <div>
+                        <label for="speedSlider" class="block text-sm font-medium text-gray-700">Animation Speed:</label>
+                        <input type="range" id="speedSlider" min="100" max="2000" value="1000" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Fast</span>
+                            <span>Slow</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- 2. Visualization Area (Right Side) -->
+            <section class="md:w-2/3 w-full p-6 relative flex flex-col">
+                
+                <!-- Statistics Display -->
+                <div id="statsBox" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-blue-100 text-blue-800 p-4 rounded-lg shadow">
+                        <div class="text-sm font-medium">Page Faults</div>
+                        <div id="pageFaultsStat" class="text-3xl font-bold">0</div>
+                    </div>
+                    <div class="bg-green-100 text-green-800 p-4 rounded-lg shadow">
+                        <div class="text-sm font-medium">Page Hits</div>
+                        <div id="pageHitsStat" class="text-3xl font-bold">0</div>
+                    </div>
+                    <div class="bg-indigo-100 text-indigo-800 p-4 rounded-lg shadow">
+                        <div class="text-sm font-medium">Total Steps</div>
+                        <div id="totalStepsStat" class="text-3xl font-bold">0</div>
+                    </div>
+                    <div class="bg-yellow-100 text-yellow-800 p-4 rounded-lg shadow">
+                        <div class="text-sm font-medium">Hit Rate</div>
+                        <div id="hitRateStat" class="text-3xl font-bold">0.0%</div>
+                    </div>
+                </div>
+
+                <!-- Timeline Slider -->
+                <div class="mb-4">
+                     <label for="timelineSlider" class="block text-sm font-medium text-gray-700">Timeline (Step):</label>
+                     <input type="range" id="timelineSlider" min="0" max="100" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50" disabled>
+                </div>
+
+                <!-- Page Reference String Display -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-2">Page Reference String</h3>
+                    <div id="refStringDisplay" class="flex flex-wrap gap-2 p-3 bg-gray-100 rounded-md border border-gray-200 min-h-[50px]">
+                        <!-- Page items will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Canvas and Status Message -->
+                <div id="canvasContainer" class_name="relative w-full flex-grow border border-gray-300 rounded-lg bg-white overflow-hidden shadow-inner">
+                    <canvas id="simulationCanvas"></canvas>
+                    <!-- Status Message (Hit/Miss) -->
+                    <div id="statusMessage" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl font-bold opacity-0 transition-all duration-500 pointer-events-none"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        /**
+         * FIFOSimulator Class
+         * Encapsulates the logic for the FIFO page replacement algorithm.
+         */
+        class FIFOSimulator {
+            constructor(frameCount, refStringInput) {
+                // 1. Parse and validate inputs
+                this.frameCount = parseInt(frameCount);
+                if (isNaN(this.frameCount) || this.frameCount <= 0) {
+                    throw new Error("Invalid number of frames.");
+                }
+                
+                this.refString = refStringInput.split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean) // Remove empty strings
+                    .map(Number)
+                    .filter(n => !isNaN(n)); // Remove non-numeric entries
+                
+                if (this.refString.length === 0) {
+                    throw new Error("Invalid or empty reference string.");
+                }
+
+                // 2. Initialize state
+                this.reset();
+            }
+
+            /**
+             * Resets the simulation to its initial state.
+             */
+            reset() {
+                this.frames = new Array(this.frameCount).fill(null); // Physical memory frames
+                this.pageQueue = []; // FIFO queue to track page entry order
+                this.pageMap = new Map(); // Tracks which frame a page is in (page -> frameIndex)
+                this.pageFaults = 0;
+                this.pageHits = 0;
+                this.currentStep = 0; // Index into the refString
+                this.history = []; // Stores state snapshots for step-backward
+            }
+
+            /**
+             * Saves the current simulation state to the history stack.
+             */
+            saveState() {
+                const state = {
+                    frames: [...this.frames],
+                    pageQueue: [...this.pageQueue],
+                    pageMapEntries: [...this.pageMap.entries()], // Convert Map to array for deep copy
+                    pageFaults: this.pageFaults,
+                    pageHits: this.pageHits,
+                    currentStep: this.currentStep
+                };
+                this.history.push(state);
+            }
+
+            /**
+             * Performs a single step forward in the simulation.
+             * @returns {object|null} An event object describing the step, or null if simulation is done.
+             */
+            stepForward() {
+                if (this.currentStep >= this.refString.length) {
+                    return null; // Simulation finished
+                }
+
+                // Save state *before* making changes
+                this.saveState();
+
+                const page = this.refString[this.currentStep];
+                const isHit = this.pageMap.has(page);
+                let event = {
+                    page: page,
+                    isHit: isHit,
+                    victim: null, // Page to be replaced
+                    frameIndex: -1 // Frame that gets updated
+                };
+
+                if (isHit) {
+                    // Page Hit
+                    this.pageHits++;
+                    event.type = 'hit';
+                    event.frameIndex = this.pageMap.get(page);
+                } else {
+                    // Page Fault
+                    this.pageFaults++;
+                    event.type = 'fault';
+
+                    if (this.pageQueue.length < this.frameCount) {
+                        // Case 1: Frames are not full
+                        // Find the first empty frame
+                        const emptySlot = this.frames.indexOf(null);
+                        this.frames[emptySlot] = page;
+                        this.pageQueue.push(page); // Add to FIFO queue
+                        this.pageMap.set(page, emptySlot); // Update map
+                        event.frameIndex = emptySlot;
+                    } else {
+                        // Case 2: Frames are full, apply FIFO
+                        // Get the victim page from the front of the queue
+                        const victim = this.pageQueue.shift();
+                        event.victim = victim;
+
+                        // Find the victim's frame
+                        const victimSlot = this.pageMap.get(victim);
+
+                        // Replace victim
+                        this.frames[victimSlot] = page;
+                        
+                        // Update map
+                        this.pageMap.delete(victim);
+                        this.pageMap.set(page, victimSlot);
+                        
+                        // Add new page to the end of the queue
+                        this.pageQueue.push(page);
+                        event.frameIndex = victimSlot;
+                    }
+                }
+
+                this.currentStep++;
+                return event;
+            }
+
+            /**
+             * Performs a single step backward by restoring the previous state.
+             * @returns {boolean} True if a step back was successful, false otherwise.
+             */
+            stepBackward() {
+                if (this.history.length === 0) {
+                    return false; // Cannot go back
+                }
+
+                const prevState = this.history.pop();
+                
+                // Restore state from history
+                this.frames = prevState.frames;
+                this.pageQueue = prevState.pageQueue;
+                this.pageMap = new Map(prevState.pageMapEntries); // Recreate Map from entries
+                this.pageFaults = prevState.pageFaults;
+                this.pageHits = prevState.pageHits;
+                this.currentStep = prevState.currentStep;
+                
+                return true;
+            }
+
+            /**
+             * Jumps to a specific step in the simulation.
+             * @param {number} step - The target step index.
+             */
+            jumpToStep(step) {
+                if (step < 0 || step > this.refString.length) {
+                    return;
+                }
+                
+                if (step < this.currentStep) {
+                    // Need to go back: Reset and fast-forward
+                    this.reset();
+                    for (let i = 0; i < step; i++) {
+                        this.stepForward(); // This builds history as it goes
+                    }
+                } else {
+                    // Just need to go forward
+                    while (this.currentStep < step) {
+                        this.stepForward();
+                    }
+                }
+            }
+
+            /**
+             * @returns {number} The total number of steps in the simulation.
+             */
+            getTotalSteps() {
+                return this.refString.length;
+            }
+        }
+
+        /**
+         * Main Application Controller
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- DOM Element References ---
+            const canvas = document.getElementById('simulationCanvas');
+            const ctx = canvas.getContext('2d');
+            const canvasContainer = document.getElementById('canvasContainer');
+            
+            const startButton = document.getElementById('startButton');
+            const playPauseButton = document.getElementById('playPauseButton');
+            const resetButton = document.getElementById('resetButton');
+            const stepForwardButton = document.getElementById('stepForwardButton');
+            const stepBackwardButton = document.getElementById('stepBackwardButton');
+            
+            const memoryFramesInput = document.getElementById('memoryFrames');
+            const pageStringInput = document.getElementById('pageString');
+            
+            const speedSlider = document.getElementById('speedSlider');
+            const timelineSlider = document.getElementById('timelineSlider');
+            
+            const refStringDisplay = document.getElementById('refStringDisplay');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            const pageFaultsStat = document.getElementById('pageFaultsStat');
+            const pageHitsStat = document.getElementById('pageHitsStat');
+            const totalStepsStat = document.getElementById('totalStepsStat');
+            const hitRateStat = document.getElementById('hitRateStat');
+
+            // --- Application State ---
+            let simulator = null;
+            let isPlaying = false;
+            let animationSpeed = 2100 - parseInt(speedSlider.value, 10); // Invert value
+            let animationTimer = null;
+            let lastEvent = null; // Store the last event for drawing animations
+
+            // --- Core Functions ---
+
+            /**
+             * Handles starting or restarting the simulation.
+             */
+            function startSimulation() {
+                if (isPlaying) {
+                    togglePlayPause(); // Pause if running
+                }
+
+                try {
+                    simulator = new FIFOSimulator(memoryFramesInput.value, pageStringInput.value);
+                    lastEvent = null;
+                    updateUI();
+                    draw();
+                } catch (e) {
+                    // Simple error handling (replace alert in production)
+                    console.error(e.message);
+                    // In a real app, show this in a modal, not an alert.
+                    // alert("Error: " + e.message); 
+                    showStatusMessage("Error: " + e.message, 'error');
+                }
+            }
+
+            /**
+             * Handles resetting the simulation to step 0.
+             */
+            function resetSimulation() {
+                if (isPlaying) {
+                    togglePlayPause();
+                }
+                if (!simulator) return;
+
+                simulator.reset();
+                lastEvent = null;
+                updateUI();
+                draw();
+            }
+
+            /**
+             * Toggles the play/pause state of the simulation.
+             */
+            function togglePlayPause() {
+                if (!simulator || simulator.currentStep === simulator.getTotalSteps()) {
+                    isPlaying = false;
+                    return;
+                }
+                
+                isPlaying = !isPlaying;
+                playPauseButton.textContent = isPlaying ? 'Pause' : 'Play';
+                playPauseButton.className = isPlaying ? 
+                    'bg-yellow-500 text-white py-2 px-4 rounded-md font-semibold hover:bg-yellow-600 transition' : 
+                    'bg-green-500 text-white py-2 px-4 rounded-md font-semibold hover:bg-green-600 transition';
+
+                if (isPlaying) {
+                    playLoop();
+                } else {
+                    clearTimeout(animationTimer);
+                }
+            }
+            
+            /**
+             * The main loop for automatic play.
+             */
+            function playLoop() {
+                if (!isPlaying) return;
+
+                const event = simulator.stepForward();
+                if (event) {
+                    lastEvent = event;
+                    updateUI();
+                    draw();
+                    showStatusAnimation(event);
+                    animationTimer = setTimeout(playLoop, animationSpeed);
+                } else {
+                    // Simulation finished
+                    togglePlayPause();
+                }
+            }
+
+            /**
+             * Executes a single step forward.
+             */
+            function doStepForward() {
+                if (isPlaying) {
+                    togglePlayPause(); // Pause if playing
+                }
+                if (!simulator) return;
+                
+                const event = simulator.stepForward();
+                if (event) {
+                    lastEvent = event;
+                    updateUI();
+                    draw();
+                    showStatusAnimation(event);
+                }
+            }
+
+            /**
+             * Executes a single step backward.
+             */
+            function doStepBackward() {
+                if (isPlaying) {
+                    togglePlayPause(); // Pause if playing
+                }
+                if (!simulator) return;
+
+                if (simulator.stepBackward()) {
+                    lastEvent = null; // Clear animation event
+                    updateUI();
+                    draw();
+                }
+            }
+
+            /**
+             * Handles changes from the timeline slider.
+             */
+            function onTimelineChange(e) {
+                if (isPlaying) {
+                    togglePlayPause();
+                }
+                if (!simulator) return;
+                
+                const step = parseInt(e.target.value, 10);
+                simulator.jumpToStep(step);
+                lastEvent = null; // Clear animation event
+                updateUI();
+                draw();
+            }
+
+            // --- UI Update Functions ---
+
+            /**
+             * Updates all UI components based on the simulator's state.
+             */
+            function updateUI() {
+                if (!simulator) {
+                    // Initial state
+                    [playPauseButton, resetButton, stepForwardButton, stepBackwardButton, timelineSlider].forEach(el => el.disabled = true);
+                    return;
+                }
+
+                // Update Stats
+                const faults = simulator.pageFaults;
+                const hits = simulator.pageHits;
+                const total = simulator.currentStep;
+                const hitRate = total === 0 ? 0 : (hits / total) * 100;
+                
+                pageFaultsStat.textContent = faults;
+                pageHitsStat.textContent = hits;
+                totalStepsStat.textContent = `${total} / ${simulator.getTotalSteps()}`;
+                hitRateStat.textContent = `${hitRate.toFixed(1)}%`;
+
+                // Update Timeline Slider
+                timelineSlider.max = simulator.getTotalSteps();
+                timelineSlider.value = simulator.currentStep;
+                
+                // Update Reference String Display
+                updateRefStringDisplay();
+
+                // Update Button States
+                const isStarted = simulator.currentStep > 0;
+                const isFinished = simulator.currentStep === simulator.getTotalSteps();
+
+                [playPauseButton, resetButton, stepForwardButton, stepBackwardButton, timelineSlider].forEach(el => el.disabled = false);
+
+                if (isFinished) {
+                    playPauseButton.disabled = true;
+                    stepForwardButton.disabled = true;
+                    if (isPlaying) togglePlayPause(); // Auto-pause at end
+                }
+                
+                if (!isStarted) {
+                    stepBackwardButton.disabled = true;
+                    resetButton.disabled = true;
+                }
+            }
+
+            /**
+             * Re-renders the page reference string display.
+             */
+            function updateRefStringDisplay() {
+                refStringDisplay.innerHTML = ''; // Clear previous
+                if (!simulator) return;
+
+                simulator.refString.forEach((page, index) => {
+                    const pageEl = document.createElement('div');
+                    pageEl.textContent = page;
+                    pageEl.className = 'page-item w-8 h-8 flex items-center justify-center rounded-md font-medium bg-white shadow-sm border-2 border-gray-200';
+                    
+                    if (index === simulator.currentStep) {
+                        pageEl.classList.add('active');
+                    }
+                    refStringDisplay.appendChild(pageEl);
+                });
+            }
+
+            /**
+             * Shows the "HIT" or "MISS" animation.
+             */
+            function showStatusAnimation(event) {
+                if (event.type === 'hit') {
+                    showStatusMessage('HIT!', 'hit');
+                } else if (event.type === 'fault') {
+                    showStatusMessage(event.victim ? `REPLACE ${event.victim}` : 'MISS', 'fault');
+                }
+            }
+
+            /**
+             * Helper to display a message on the canvas overlay.
+             */
+            function showStatusMessage(text, type) {
+                statusMessage.textContent = text;
+                statusMessage.className = 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl font-bold opacity-0 transition-all duration-500 pointer-events-none'; // Reset
+                
+                if (type === 'hit') {
+                    statusMessage.classList.add('text-green-500');
+                } else if (type === 'fault') {
+                    statusMessage.classList.add('text-red-500');
+                } else {
+                    statusMessage.classList.add('text-gray-700');
+                }
+
+                // Force reflow to restart animation
+                void statusMessage.offsetWidth; 
+
+                // Fade in and up
+                statusMessage.style.transition = 'all 0.5s ease-out';
+                statusMessage.style.opacity = '0.8';
+                statusMessage.style.transform = 'translate(-50%, -50%) scale(1.2)';
+
+                // Fade out
+                setTimeout(() => {
+                    statusMessage.style.opacity = '0';
+                    statusMessage.style.transform = 'translate(-50%, -50%) scale(1)';
+                }, 500);
+            }
+
+            // --- Canvas Drawing ---
+
+            /**
+             * Main drawing function.
+             */
+            function draw() {
+                // Resize canvas to fit its container
+                canvas.width = canvasContainer.clientWidth;
+                canvas.height = canvasContainer.clientHeight;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (!simulator) return; // Don't draw if not initialized
+
+                const frameCount = simulator.frameCount;
+                const boxMargin = 20;
+                const boxWidth = 100;
+                // Calculate total height needed and center vertically
+                const totalHeight = (frameCount * boxWidth) + ((frameCount - 1) * boxMargin);
+                let startY = (canvas.height - totalHeight) / 2;
+                if (startY < 60) startY = 60; // Add padding from top
+                
+                const startX = (canvas.width / 2) - (boxWidth / 2); // Center horizontally
+
+                // Draw Memory Frames
+                ctx.font = 'bold 24px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                ctx.fillStyle = '#374151'; // gray-700
+                ctx.fillText('Memory Frames', canvas.width / 2, startY - 30);
+
+                for (let i = 0; i < frameCount; i++) {
+                    const y = startY + i * (boxWidth + boxMargin);
+                    const page = simulator.frames[i];
+
+                    // Highlight frame based on last event
+                    if (lastEvent && lastEvent.frameIndex === i) {
+                        ctx.fillStyle = lastEvent.isHit ? '#dcfce7' : '#fee2e2'; // green-100 or red-100
+                        ctx.strokeStyle = lastEvent.isHit ? '#22c55e' : '#ef4444'; // green-500 or red-500
+                        ctx.lineWidth = 4;
+                    } else {
+                        ctx.fillStyle = '#f9fafb'; // gray-50
+                        ctx.strokeStyle = '#6b7280'; // gray-500
+                        ctx.lineWidth = 2;
+                    }
+
+                    ctx.beginPath();
+                    ctx.rect(startX, y, boxWidth, boxWidth);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Draw page number inside
+                    if (page !== null) {
+                        ctx.fillStyle = '#1f2937'; // gray-800
+                        ctx.fillText(page.toString(), startX + boxWidth / 2, y + boxWidth / 2);
+                    }
+                }
+
+                // Draw FIFO Queue (Visual)
+                const queueY = startY + totalHeight + 60;
+                if (queueY < canvas.height - 50) { // Only draw if space
+                    ctx.fillStyle = '#374151';
+                    ctx.font = 'bold 16px Inter';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('FIFO Queue (Front -> Rear)', 50, queueY - 20);
+
+                    simulator.pageQueue.forEach((page, i) => {
+                        const qx = 50 + i * 45;
+                        ctx.fillStyle = '#e5e7eb'; // gray-200
+                        ctx.strokeStyle = '#6b7280';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.rect(qx, queueY, 40, 40);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#1f2937';
+                        ctx.font = '16px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(page.toString(), qx + 20, queueY + 20);
+                    });
+                }
+            }
+
+            // --- Event Listeners ---
+            startButton.addEventListener('click', startSimulation);
+            resetButton.addEventListener('click', resetSimulation);
+            playPauseButton.addEventListener('click', togglePlayPause);
+            stepForwardButton.addEventListener('click', doStepForward);
+            stepBackwardButton.addEventListener('click', doStepBackward);
+            
+            speedSlider.addEventListener('input', (e) => {
+                animationSpeed = 2100 - parseInt(e.target.value, 10);
+            });
+
+            timelineSlider.addEventListener('input', onTimelineChange);
+
+            // Redraw on window resize
+            window.addEventListener('resize', () => {
+                if (simulator) draw();
+            });
+
+            // --- Initial Call ---
+            updateUI(); // Set initial button disabled states
+        });
+    </script>
+</body>
+</html>
