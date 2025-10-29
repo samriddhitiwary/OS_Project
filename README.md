@@ -1,85 +1,100 @@
-OS Page Replacement Simulator (FIFO)
+# 🧠 OS Page Replacement Simulator (FIFO)
 
-An interactive, zero-dependency web application for visualizing the First-In, First-Out (FIFO) page replacement algorithm. Built with pure HTML, JavaScript, and the Canvas API.
+An **interactive, zero-dependency web application** for visualizing the **First-In, First-Out (FIFO)** page replacement algorithm — built entirely with **HTML, JavaScript, Tailwind CSS**, and the **Canvas API**.
 
-📖 Project Description
+---
 
-This project is a standalone, client-side web application designed to help computer science students and enthusiasts visualize core operating system concepts. It provides an interactive, animated simulation of the FIFO page replacement algorithm, allowing users to input custom parameters and observe the algorithm's behavior in real-time.
+## 📖 Overview
 
-The tool is built entirely with HTML5, Tailwind CSS, and modern JavaScript (ES6+), using the HTML Canvas API for all animations. It runs locally in any modern web browser without requiring any server-side dependencies or build steps, making it an accessible and effective learning tool.
+This project is a **standalone, client-side web application** designed to help computer science students and enthusiasts **visualize core operating system concepts**.
+It offers a fully interactive simulation of the **FIFO page replacement algorithm**, allowing users to input custom parameters and observe its step-by-step behavior in real time.
 
-✨ Features
+Built with **pure HTML5, Tailwind CSS (via CDN)**, and **modern ES6+ JavaScript**, the simulator leverages the **HTML Canvas API** for all visualizations — no backend or build tools required.
 
-Interactive Simulation: Define the number of memory frames and provide a custom page reference string.
+---
 
-Canvas-Based Visualization: See the state of memory frames rendered dynamically on an HTML canvas.
+## ✨ Features
 
-Full Playback Controls:
+✅ **Interactive Simulation** – Define memory frame size and input a custom page reference string.
+🎨 **Canvas-Based Visualization** – Watch memory frames update dynamically on the canvas.
+⏯️ **Full Playback Controls** –
+    • ▶️ Play / ⏸️ Pause
+    • ⏩ Step Forward
+    • ⏪ Step Backward
+    • 🔄 Reset
 
-▶️ Play / ⏸️ Pause
+📊 **Real-time Statistics Panel** –
+Displays metrics that update live during the simulation:
 
-⏩ Step Forward
+* Page Faults
+* Page Hits
+* Total Steps
+* Page Hit Rate (%)
 
-⏪ Step Backward
+📍 **Timeline & Speed Control** –
+Drag to any simulation step or adjust playback speed for detailed analysis.
 
-🔄 Reset to Initial State
+📱 **Responsive UI** –
+Built with Tailwind CSS for seamless scaling across all devices.
 
-Dynamic Feedback: Get immediate visual feedback for each step ("HIT", "MISS", or "REPLACE") animated directly on the canvas.
+---
 
-Real-time Statistics: A dedicated panel displays key metrics that update with every step:
+## 💻 Technology Stack
 
-Page Faults
+| Component        | Technology               |
+| ---------------- | ------------------------ |
+| **Frontend**     | HTML5, JavaScript (ES6+) |
+| **Styling**      | Tailwind CSS (CDN)       |
+| **Graphics**     | HTML5 Canvas API         |
+| **Dependencies** | None                     |
 
-Page Hits
+---
 
-Total Steps
+## 🚀 Getting Started
 
-Page Hit Rate (%)
+This application runs directly in your browser — **no installation or server setup required.**
 
-Timeline Control: A draggable timeline slider allows you to jump to any specific point in the simulation's execution.
+### Steps:
 
-Configurable Speed: An animation speed slider lets you control the pace of the simulation, from a high-speed overview to a deliberate step-by-step analysis.
+1. **Download:** Save the `index.html` file to your computer.
+2. **Open:** Right-click → *Open with* → Choose your web browser (Chrome, Firefox, Edge, etc.).
+3. **Run:** The simulator will load instantly and is ready to use!
 
-Fully Responsive: The interface is built with Tailwind CSS and adapts to all screen sizes, from mobile to desktop.
+---
 
-💻 Technology Stack
+## ⚙️ How It Works
 
-Frontend: HTML5, CSS3
+The logic is encapsulated within a single `<script>` section that contains two main components:
 
-Styling: Tailwind CSS (loaded via CDN)
+### 🧩 **1. FIFOSimulator Class**
 
-Logic: Modern JavaScript (ES6+)
+* Handles all algorithmic logic for **page hits**, **page faults**, and **replacements**.
+* Uses a **queue (pageQueue)** to manage FIFO ordering.
+* Maintains a **history stack** to enable the *Step Backward* feature.
 
-Graphics: HTML5 Canvas API (for all simulation graphics)
+### 🖥️ **2. UI Controller & Canvas Drawer**
 
-🚀 How to Run
+* Attaches event listeners to all control buttons and input elements.
+* Calls `simulator.stepForward()` and `simulator.stepBackward()` methods for navigation.
+* The `draw()` function reads from the simulator state and dynamically renders updates onto the canvas.
 
-This application is a single, standalone HTML file. No server or build process is needed.
+---
 
-Download: Save the os_simulator.html file to your local computer.
+## 🔮 Future Enhancements
 
-Open: Right-click the file and choose "Open with" your favorite browser (e.g., Google Chrome, Firefox, Safari).
+* 🧩 **Additional Algorithms:** LRU, Optimal (OPT), Clock.
+* 📤 **Data Export:** Save simulation traces (hits, faults, frame states) as JSON or CSV.
+* ⚖️ **Comparative Mode:** Run two algorithms side-by-side to compare performance metrics.
 
-Run: The application will load and be ready to use immediately!
+---
 
-🔧 How It Works
+## 👩‍💻 Author
 
-The application's logic is encapsulated in two main parts within the <script> tag:
+**Developed by:** [Samriddhi Tiwary](https://github.com/samriddhitiwary)
+🎓 B.Tech 
 
-FIFOSimulator Class: A JavaScript class that manages the entire state of the simulation. It handles the logic for page hits, page faults, and frame replacements using a queue (pageQueue) to track the "First-In" page. It also maintains a history stack (history) to enable the "Step Backward" functionality.
+---
 
-UI Controller & Canvas Drawer: The main DOMContentLoaded listener attaches event handlers to all buttons and inputs. It calls the simulator.stepForward() or simulator.stepBackward() methods and then triggers the draw() function. The draw() function reads the state from the simulator object (e.g., simulator.frames) and renders the visual representation onto the HTML canvas.
 
-🔮 Future Improvements
-
-This project provides a solid foundation for a more comprehensive OS simulator. Future enhancements could include:
-
-More Algorithms: Add other page replacement algorithms like LRU (Least Recently Used), Optimal (OPT), and Clock.
-
-Data Export: Add a button to export the execution trace (hits, faults, memory state at each step) as a JSON or CSV file.
-
-Comparative Mode: Allow users to run two algorithms side-by-side with the same reference string to compare their performance directly.
-
-📄 License
-
-This project is open-source and available under the MIT License.
+Would you like me to **add a section with example inputs and screenshots (like “Usage Example” and “Demo Output Table”)?**
+That would make the README more engaging for GitHub visitors.
